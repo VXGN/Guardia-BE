@@ -1,5 +1,4 @@
 import { Express } from "express";
-import swaggerUi from "swagger-ui-express";
 
 const swaggerSpec = {
   openapi: "3.0.0",
@@ -116,16 +115,36 @@ const swaggerSpec = {
   },
 };
 
-const swaggerUiOptions = {
-    explorer: true,
-    customCss:'.swagger-ui .opblock .opblock-summary-path-description-wrapper { align-items: center; display: flex; flex-wrap: wrap; gap: 0 10px; padding: 0 10px; width: 100%; }',
-    customCssUrl: 'https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.0.0/swagger-ui.min.css'
-}
-
 export function setupSwagger(app: Express) {
-  app.use(
-    "/docs",
-    swaggerUi.serve,
-    swaggerUi.setup(swaggerSpec, swaggerUiOptions)
-);
+  const html = `<!DOCTYPE html>
+<html>
+  <head>
+    <title>Guardia API Documentation</title>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" type="text/css" href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css">
+  </head>
+  <body>
+    <div id="swagger-ui"></div>
+    <script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
+    <script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-standalone-preset.js"></script>
+    <script>
+      window.onload = function () {
+        SwaggerUIBundle({
+          spec: ${JSON.stringify(swaggerSpec)},
+          dom_id: '#swagger-ui',
+          deepLinking: true,
+          presets: [SwaggerUIBundle.presets.apis, SwaggerUIStandalonePreset],
+          plugins: [SwaggerUIBundle.plugins.DownloadUrl],
+          layout: 'StandaloneLayout',
+        });
+      };
+    </script>
+  </body>
+</html>`;
+
+  app.get("/docs", (_req, res) => {
+    res.setHeader("Content-Type", "text/html");
+    res.send(html);
+  });
 }
