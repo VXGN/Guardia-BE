@@ -119,7 +119,7 @@ model IncidentReport {
   latitude          Decimal      @db.Decimal(10, 8)
   longitude         Decimal      @db.Decimal(11, 8)
   latitude_blurred  Decimal      @db.Decimal(7, 5)
-  longitude_blurred Decimal      @db.Decimal(7, 5)
+  longitude_blurred Decimal      @db.Decimal(8, 5)
   location_label    String?      @db.VarChar(255)
   is_anonymous      Boolean      @default(true)
   status            ReportStatus @default(received)
@@ -279,7 +279,7 @@ model RiskScore {
 model HeatmapCluster {
   id                 String           @id @default(uuid()) @db.Char(36)
   center_lat_blurred Decimal          @db.Decimal(7, 5)
-  center_lng_blurred Decimal          @db.Decimal(7, 5)
+  center_lng_blurred Decimal          @db.Decimal(8, 5)
   radius_meters      Int
   intensity          HeatmapIntensity
   incident_count     Int
