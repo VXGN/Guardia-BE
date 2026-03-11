@@ -80,7 +80,7 @@ export class RiskAreaService {
     });
 
     const formattedClusters: HeatmapClusterResult[] = heatmapClusters.map(
-      (c) => ({
+      (c: { id: any; center_lat_blurred: any; center_lng_blurred: any; radius_meters: any; intensity: any; incident_count: any; dominant_type: any; time_slot: any; valid_from: any; valid_until: any; }) => ({
         id: c.id,
         center_lat_blurred: Number(c.center_lat_blurred),
         center_lng_blurred: Number(c.center_lng_blurred),
@@ -94,7 +94,7 @@ export class RiskAreaService {
       })
     );
 
-    const formattedScores: RiskScoreResult[] = riskScores.map((r) => ({
+    const formattedScores: RiskScoreResult[] = riskScores.map((r: { id: any; segment_id: any; time_slot: any; risk_score: any; incident_count: any; dominant_incident_type: any; road_segment: { id: any; segment_name: any; start_lat: any; start_lng: any; end_lat: any; end_lng: any; has_street_light: any; is_main_road: any; near_security_post: any; }; }) => ({
       id: r.id,
       segment_id: r.segment_id,
       time_slot: r.time_slot,
