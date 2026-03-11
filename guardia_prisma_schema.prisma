@@ -1,0 +1,381 @@
+// =============================================================================
+// GUARDIA – Prisma Schema
+// File: prisma/schema.prisma
+// Datasource: MySQL 8.0+ | Generator: prisma-client-js
+// =============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// ENUMS
+// ============================================================
+
+enum UserRole {
+  user
+  admin
+  partner
+}
+
+enum IncidentType {
+  verbal_harassment
+  physical_harassment
+  stalking
+  theft
+  intimidation
+  other
+}
+
+enum ReportStatus {
+  received
+  verified
+  in_progress
+  resolved
+  rejected
+}
+
+enum MediaType {
+  photo
+  audio
+  video
+}
+
+enum JourneyStatus {
+  active
+  completed
+  alert_triggered
+  cancelled
+}
+
+enum TimeSlot {
+  morning
+  afternoon
+  evening
+  night
+}
+
+enum HeatmapIntensity {
+  low
+  medium
+  high
+  critical
+}
+
+enum NotificationType {
+  journey_start
+  journey_safe_arrival
+  journey_alert
+  report_status_update
+  panic_alert
+  system
+}
+
+// ============================================================
+// MODEL: User
+// ============================================================
+
+model User {
+  id                String    @id @default(uuid()) @db.Char(36)
+  full_name         String?   @db.VarChar(100)
+  email             String?   @unique @db.VarChar(150)
+  phone_number      String?   @unique @db.VarChar(20)
+  password_hash     String?   @db.Text
+  role              UserRole  @default(user)
+  is_anonymous_mode Boolean   @default(true)
+  is_verified       Boolean   @default(false)
+  fcm_token         String?   @db.Text
+  created_at        DateTime  @default(now()) @db.DateTime(6)
+  updated_at        DateTime  @updatedAt @db.DateTime(6)
+  deleted_at        DateTime? @db.DateTime(6)
+
+  trusted_contacts   TrustedContact[]
+  incident_reports   IncidentReport[]
+  journeys           Journey[]
+  report_status_logs ReportStatusLog[]
+  notifications      Notification[]
+
+  @@index([role], name: "users_role_idx")
+  @@index([deleted_at], name: "users_deleted_at_idx")
+  @@index([is_verified], name: "users_verified_idx")
+  @@map("users")
+}
+
+// ============================================================
+// MODEL: TrustedContact
+// ============================================================
+
+model TrustedContact {
+  id            String    @id @default(uuid()) @db.Char(36)
+  user_id       String    @db.Char(36)
+  contact_name  String    @db.VarChar(100)
+  contact_phone String    @db.VarChar(20)
+  contact_email String?   @db.VarChar(150)
+  is_active     Boolean   @default(true)
+  created_at    DateTime  @default(now()) @db.DateTime(6)
+  updated_at    DateTime  @updatedAt @db.DateTime(6)
+
+  user             User             @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  journey_contacts JourneyContact[]
+
+  @@index([user_id], name: "trusted_contacts_user_id_idx")
+  @@index([user_id, is_active], name: "trusted_contacts_active_idx")
+  @@map("trusted_contacts")
+}
+
+// ============================================================
+// MODEL: IncidentReport
+// ============================================================
+
+model IncidentReport {
+  id                String       @id @default(uuid()) @db.Char(36)
+  user_id           String?      @db.Char(36)
+  incident_type     IncidentType
+  description       String?      @db.Text
+  incident_at       DateTime     @db.DateTime(6)
+  latitude          Decimal      @db.Decimal(10, 8)
+  longitude         Decimal      @db.Decimal(11, 8)
+  latitude_blurred  Decimal      @db.Decimal(7, 5)
+  longitude_blurred Decimal      @db.Decimal(7, 5)
+  location_label    String?      @db.VarChar(255)
+  is_anonymous      Boolean      @default(true)
+  status            ReportStatus @default(received)
+  severity_score    Int?         @db.SmallInt
+  created_at        DateTime     @default(now()) @db.DateTime(6)
+  updated_at        DateTime     @updatedAt @db.DateTime(6)
+  deleted_at        DateTime?    @db.DateTime(6)
+
+  user               User?             @relation(fields: [user_id], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  report_media       ReportMedia[]
+  report_status_logs ReportStatusLog[]
+  notifications      Notification[]
+
+  @@index([user_id], name: "incident_reports_user_id_idx")
+  @@index([status], name: "incident_reports_status_idx")
+  @@index([incident_at], name: "incident_reports_incident_at_idx")
+  @@index([incident_type], name: "incident_reports_type_idx")
+  @@index([latitude_blurred, longitude_blurred], name: "incident_reports_blurred_loc_idx")
+  @@index([deleted_at], name: "incident_reports_deleted_at_idx")
+  @@map("incident_reports")
+}
+
+// ============================================================
+// MODEL: ReportMedia
+// ============================================================
+
+model ReportMedia {
+  id           String    @id @default(uuid()) @db.Char(36)
+  report_id    String    @db.Char(36)
+  media_type   MediaType
+  storage_url  String    @db.Text
+  file_size_kb Int?
+  is_encrypted Boolean   @default(true)
+  created_at   DateTime  @default(now()) @db.DateTime(6)
+
+  incident_report IncidentReport @relation(fields: [report_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([report_id], name: "report_media_report_id_idx")
+  @@index([report_id, media_type], name: "report_media_type_idx")
+  @@map("report_media")
+}
+
+// ============================================================
+// MODEL: ReportStatusLog
+// ============================================================
+
+model ReportStatusLog {
+  id         String       @id @default(uuid()) @db.Char(36)
+  report_id  String       @db.Char(36)
+  changed_by String?      @db.Char(36)
+  old_status ReportStatus
+  new_status ReportStatus
+  notes      String?      @db.Text
+  changed_at DateTime     @default(now()) @db.DateTime(6)
+
+  incident_report IncidentReport @relation(fields: [report_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  user            User?          @relation(fields: [changed_by], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@index([report_id], name: "rsl_report_id_idx")
+  @@index([changed_by], name: "rsl_changed_by_idx")
+  @@index([changed_at], name: "rsl_changed_at_idx")
+  @@map("report_status_logs")
+}
+
+// ============================================================
+// MODEL: Journey
+// ============================================================
+
+model Journey {
+  id                     String        @id @default(uuid()) @db.Char(36)
+  user_id                String        @db.Char(36)
+  status                 JourneyStatus @default(active)
+  started_at             DateTime      @db.DateTime(6)
+  ended_at               DateTime?     @db.DateTime(6)
+  origin_lat             Decimal?      @db.Decimal(10, 8)
+  origin_lng             Decimal?      @db.Decimal(11, 8)
+  destination_lat        Decimal?      @db.Decimal(10, 8)
+  destination_lng        Decimal?      @db.Decimal(11, 8)
+  safe_arrival_confirmed Boolean       @default(false)
+  created_at             DateTime      @default(now()) @db.DateTime(6)
+  updated_at             DateTime      @updatedAt @db.DateTime(6)
+
+  user                  User                  @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  journey_location_logs JourneyLocationLog[]
+  journey_contacts      JourneyContact[]
+  notifications         Notification[]
+
+  @@index([user_id], name: "journeys_user_id_idx")
+  @@index([status], name: "journeys_status_idx")
+  @@index([started_at], name: "journeys_started_at_idx")
+  @@map("journeys")
+}
+
+// ============================================================
+// MODEL: JourneyLocationLog
+// ============================================================
+
+model JourneyLocationLog {
+  id                 String   @id @default(uuid()) @db.Char(36)
+  journey_id         String   @db.Char(36)
+  latitude           Decimal  @db.Decimal(10, 8)
+  longitude          Decimal  @db.Decimal(11, 8)
+  recorded_at        DateTime @db.DateTime(6)
+  is_anomaly_flagged Boolean  @default(false)
+
+  journey Journey @relation(fields: [journey_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([journey_id], name: "jll_journey_id_idx")
+  @@index([journey_id, recorded_at], name: "jll_recorded_at_idx")
+  @@index([is_anomaly_flagged], name: "jll_anomaly_idx")
+  @@map("journey_location_logs")
+}
+
+// ============================================================
+// MODEL: JourneyContact
+// ============================================================
+
+model JourneyContact {
+  id                 String    @id @default(uuid()) @db.Char(36)
+  journey_id         String    @db.Char(36)
+  trusted_contact_id String    @db.Char(36)
+  notified_at        DateTime? @db.DateTime(6)
+  alert_sent_at      DateTime? @db.DateTime(6)
+
+  journey         Journey        @relation(fields: [journey_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  trusted_contact TrustedContact @relation(fields: [trusted_contact_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@unique([journey_id, trusted_contact_id], name: "jc_unique_idx")
+  @@index([journey_id], name: "jc_journey_id_idx")
+  @@index([trusted_contact_id], name: "jc_trusted_contact_id_idx")
+  @@map("journey_contacts")
+}
+
+// ============================================================
+// MODEL: RoadSegment
+// ============================================================
+
+model RoadSegment {
+  id                 String   @id @default(uuid()) @db.Char(36)
+  segment_name       String?  @db.VarChar(255)
+  start_lat          Decimal  @db.Decimal(10, 8)
+  start_lng          Decimal  @db.Decimal(11, 8)
+  end_lat            Decimal  @db.Decimal(10, 8)
+  end_lng            Decimal  @db.Decimal(11, 8)
+  length_meters      Int?
+  has_street_light   Boolean  @default(false)
+  is_main_road       Boolean  @default(false)
+  near_security_post Boolean  @default(false)
+  osm_way_id         BigInt?  @unique
+  created_at         DateTime @default(now()) @db.DateTime(6)
+  updated_at         DateTime @updatedAt @db.DateTime(6)
+
+  risk_scores RiskScore[]
+
+  @@index([osm_way_id], name: "rs_osm_way_id_idx")
+  @@index([start_lat, start_lng], name: "rs_start_coords_idx")
+  @@index([end_lat, end_lng], name: "rs_end_coords_idx")
+  @@map("road_segments")
+}
+
+// ============================================================
+// MODEL: RiskScore
+// ============================================================
+
+model RiskScore {
+  id                     String       @id @default(uuid()) @db.Char(36)
+  segment_id             String       @db.Char(36)
+  time_slot              TimeSlot
+  risk_score             Decimal      @db.Decimal(5, 2)
+  incident_count         Int          @default(0)
+  dominant_incident_type IncidentType?
+  calculated_at          DateTime     @db.DateTime(6)
+  valid_until            DateTime?    @db.DateTime(6)
+
+  road_segment RoadSegment @relation(fields: [segment_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@unique([segment_id, time_slot], name: "risk_scores_segment_slot_uidx")
+  @@index([segment_id], name: "risk_scores_segment_id_idx")
+  @@index([time_slot], name: "risk_scores_time_slot_idx")
+  @@index([risk_score], name: "risk_scores_score_idx")
+  @@index([valid_until], name: "risk_scores_valid_until_idx")
+  @@map("risk_scores")
+}
+
+// ============================================================
+// MODEL: HeatmapCluster
+// ============================================================
+
+model HeatmapCluster {
+  id                 String           @id @default(uuid()) @db.Char(36)
+  center_lat_blurred Decimal          @db.Decimal(7, 5)
+  center_lng_blurred Decimal          @db.Decimal(7, 5)
+  radius_meters      Int
+  intensity          HeatmapIntensity
+  incident_count     Int
+  dominant_type      IncidentType?
+  time_slot          TimeSlot?
+  valid_from         DateTime         @db.DateTime(6)
+  valid_until        DateTime         @db.DateTime(6)
+  created_at         DateTime         @default(now()) @db.DateTime(6)
+
+  @@index([intensity], name: "heatmap_intensity_idx")
+  @@index([valid_until], name: "heatmap_valid_until_idx")
+  @@index([time_slot], name: "heatmap_time_slot_idx")
+  @@index([center_lat_blurred, center_lng_blurred], name: "heatmap_center_idx")
+  @@map("heatmap_clusters")
+}
+
+// ============================================================
+// MODEL: Notification
+// ============================================================
+
+model Notification {
+  id                 String           @id @default(uuid()) @db.Char(36)
+  recipient_user_id  String?          @db.Char(36)
+  recipient_phone    String?          @db.VarChar(20)
+  notification_type  NotificationType
+  title              String           @db.VarChar(150)
+  body               String           @db.Text
+  related_journey_id String?          @db.Char(36)
+  related_report_id  String?          @db.Char(36)
+  is_sent            Boolean          @default(false)
+  sent_at            DateTime?        @db.DateTime(6)
+  created_at         DateTime         @default(now()) @db.DateTime(6)
+
+  recipient_user  User?           @relation(fields: [recipient_user_id], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  related_journey Journey?        @relation(fields: [related_journey_id], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  related_report  IncidentReport? @relation(fields: [related_report_id], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@index([recipient_user_id], name: "notif_recipient_user_id_idx")
+  @@index([notification_type], name: "notif_type_idx")
+  @@index([is_sent], name: "notif_is_sent_idx")
+  @@index([created_at], name: "notif_created_at_idx")
+  @@index([related_journey_id], name: "notif_journey_id_idx")
+  @@index([related_report_id], name: "notif_report_id_idx")
+  @@map("notifications")
+}
