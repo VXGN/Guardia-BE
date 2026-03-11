@@ -2,4 +2,4 @@ node_modules
 dist
 .env
 *.log
-*.md
+API_DOCUMENTATION.md
