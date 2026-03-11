@@ -77,7 +77,7 @@ CREATE TABLE IF NOT EXISTS `incident_reports` (
     `incident_at`       DATETIME(6) NOT NULL COMMENT 'Waktu kejadian, bisa berbeda dari created_at',
     `latitude`          DECIMAL(10,8) NOT NULL COMMENT 'Koordinat presisi, hanya untuk internal/analitik',
     `longitude`         DECIMAL(11,8) NOT NULL,
-    `latitude_blurred`  DECIMAL(7,5)  NOT NULL COMMENT 'Koordinat dibulatkan untuk heatmap publik (~100-200m)',
+    `longitude_blurred` DECIMAL(8,5)  NOT NULL COMMENT 'Koordinat dibulatkan untuk heatmap publik (~100-200m)',
     `longitude_blurred` DECIMAL(7,5)  NOT NULL,
     `location_label`    VARCHAR(255) NULL,
     `is_anonymous`      TINYINT(1)  NOT NULL DEFAULT 1,
@@ -302,7 +302,7 @@ CREATE INDEX `risk_scores_valid_until_idx`  ON `risk_scores` (`valid_until`);
 CREATE TABLE IF NOT EXISTS `heatmap_clusters` (
     `id`                  CHAR(36)    NOT NULL DEFAULT (UUID()),
     `center_lat_blurred`  DECIMAL(7,5) NOT NULL COMMENT 'Koordinat dibulatkan untuk privasi',
-    `center_lng_blurred`  DECIMAL(7,5) NOT NULL,
+    `center_lng_blurred`  DECIMAL(8,5) NOT NULL,
     `radius_meters`       INTEGER     NOT NULL,
     `intensity`           ENUM('low','medium','high','critical') NOT NULL,
     `incident_count`      INTEGER     NOT NULL,
