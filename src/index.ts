@@ -29,10 +29,12 @@ app.use("/api", apiRouter);
 app.use(notFoundHandler);
 app.use(errorHandler);
 
-app.listen(env.port, () => {
-  console.log(
-    `[Guardia] Server running on port ${env.port} in ${env.nodeEnv} mode`
-  );
-});
+if (process.env.NODE_ENV !== "production" && !process.env.VERCEL) {
+  app.listen(env.port, () => {
+    console.log(
+      `[Guardia] Server running on port ${env.port} in ${env.nodeEnv} mode`
+    );
+  });
+}
 
-export { app };
+export default app;
